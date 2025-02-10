@@ -6,6 +6,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+import 'package:gold_card_editer/feature/draggableText.widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -101,82 +102,269 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
     });
   }
 
+  //* text dragable
+  // Transformation parameters.
+  Offset _offsetText = Offset.zero;
+  double _scaleText = 1.0;
+  double _rotationText = 0.0;
+
+  // Variables to store initial gesture parameters.
+  Offset _initialFocalPointText = Offset.zero;
+  Offset _initialOffsetText = Offset.zero;
+  double _initialScaleText = 1.0;
+  double _initialRotationText = 0.0;
+
+  final List<Widget> _textWidgets = [];
+
+  void _editText() {}
+
+  void _addTextOverlay(String text) {
+    setState(() {
+      _textWidgets.add(
+        DraggableEditableText(
+          text: text,
+        ),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text("Gift Card Creator (${widget.cardLabel})"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.image),
-            tooltip: "Pick Background Image",
-            onPressed: _pickImage,
-          ),
-          IconButton(
-            icon: const Icon(Icons.flip),
-            tooltip: "Flip Image",
-            onPressed: _flipImage,
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: "Export as PNG",
-            onPressed: _exportToPNG,
-          ),
-        ],
       ),
-      body: Center(
-        child: RepaintBoundary(
-          key: _globalKey,
-          // ClipRect ensures that the image stays within the card frame.
-          child: ClipRect(
-            child: Container(
-              width: widget.cardWidth,
-              height: widget.cardHeight,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.black),
-              ),
-              child: Stack(
+      floatingActionButton: FloatingActionButton(
+        onPressed: _exportToPNG,
+        child: Icon(Icons.download),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          spacing: 5,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: _buildCard(),
+            ),
+            SingleChildScrollView(
+              child: Row(
+                spacing: 5,
                 children: [
-                  if (_backgroundImage != null)
-                    // GestureDetector supports dragging, zooming, and rotation.
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onScaleStart: (details) {
-                          _initialFocalPoint = details.focalPoint;
-                          _initialOffset = _offset;
-                          _initialScale = _scale;
-                          _initialRotation = _rotation;
-                        },
-                        onScaleUpdate: (details) {
-                          setState(() {
-                            _offset = _initialOffset +
-                                (details.focalPoint - _initialFocalPoint);
-                            _scale = _initialScale * details.scale;
-                            _rotation = _initialRotation + details.rotation;
-                          });
-                        },
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.identity()
-                            ..translate(_offset.dx, _offset.dy)
-                            ..rotateZ(_rotation)
-                            ..scale(_scale * (_flipped ? -1.0 : 1.0), _scale),
-                          child: Image.file(
-                            _backgroundImage!,
-                            fit: BoxFit.cover,
-                            width: widget.cardWidth,
-                            height: widget.cardHeight,
+                  ChoiceChip(
+                      onSelected: (value) {
+                        _pickImage();
+                      },
+                      showCheckmark: false,
+                      label: const Icon(Icons.image),
+                      selected: false),
+                  ChoiceChip(
+                      showCheckmark: false,
+                      onSelected: (value) {
+                        _flipImage();
+                      },
+                      label: const Icon(Icons.flip),
+                      selected: false),
+                  ChoiceChip(
+                      onSelected: (value) {
+                        _openButtomSheet();
+                      },
+                      showCheckmark: false,
+                      label: const Icon(Icons.text_fields),
+                      selected: false),
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Align _buildCard() {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        padding: const EdgeInsets.all(22.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color:
+              const ui.Color.fromARGB(255, 221, 218, 218).withValues(alpha: .5),
+        ),
+        child: AspectRatio(
+          aspectRatio: widget.cardWidth / widget.cardHeight,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: RepaintBoundary(
+              key: _globalKey,
+              child: Container(
+                width: widget.cardWidth,
+                height: widget.cardHeight,
+                decoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                ),
+                child: Stack(
+                  children: [
+                    if (_backgroundImage != null)
+                      // GestureDetector supports dragging, zooming, and rotation.
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onScaleStart: (details) {
+                            _initialFocalPoint = details.focalPoint;
+                            _initialOffset = _offset;
+                            _initialScale = _scale;
+                            _initialRotation = _rotation;
+                          },
+                          onScaleUpdate: (details) {
+                            setState(() {
+                              _offset = _initialOffset +
+                                  (details.focalPoint - _initialFocalPoint);
+                              _scale = _initialScale * details.scale;
+                              _rotation = _initialRotation + details.rotation;
+                            });
+                          },
+                          child: Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..translate(_offset.dx, _offset.dy)
+                              ..rotateZ(_rotation)
+                              ..scale(_scale * (_flipped ? -1.0 : 1.0), _scale),
+                            child: Image.file(
+                              _backgroundImage!,
+                              fit: BoxFit.cover,
+                              width: widget.cardWidth,
+                              height: widget.cardHeight,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ..._textWidgets.map(
+                      (e) => Positioned.fill(
+                        child: GestureDetector(
+                          onTap: _editText,
+                          onScaleStart: (details) {
+                            _initialFocalPointText = details.focalPoint;
+                            _initialOffsetText = _offsetText;
+                            _initialRotationText = _rotationText;
+                          },
+                          onScaleUpdate: (details) {
+                            setState(() {
+                              _offsetText = _initialOffsetText +
+                                  (details.focalPoint - _initialFocalPointText);
+
+                              _rotationText =
+                                  _initialRotationText + details.rotation;
+                            });
+                          },
+                          child: Transform(
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..translate(_offsetText.dx, _offsetText.dy)
+                              ..rotateZ(_rotationText),
+                            child: Center(
+                                child: Stack(
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.all(8.0),
+                                  padding: const EdgeInsets.all(8.0),
+                                  decoration: BoxDecoration(
+                                    // Frame covering the text:
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Container(
+                                      width: 300,
+                                      decoration: BoxDecoration(
+                                        // Frame covering the text:
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: e),
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  top: 0,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _textWidgets.remove(e);
+                                      });
+                                    },
+                                    child: CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: Colors.white,
+                                      child: Icon(
+                                        Icons.delete,
+                                        size: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  bottom: 0,
+                                  child: GestureDetector(
+                                    child: CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: Colors.white,
+                                      child: Icon(
+                                        Icons.center_focus_weak,
+                                        size: 15,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              ],
+                            )),
                           ),
                         ),
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  _openButtomSheet() {
+    TextEditingController controller = TextEditingController();
+    showModalBottomSheet(
+        barrierColor: Colors.transparent,
+        context: context,
+        builder: (context) {
+          return Container(
+              padding: EdgeInsets.only(left: 20, right: 20, bottom: 20),
+              color: Colors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 5,
+                children: [
+                  Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            if (controller.text.isEmpty) return;
+                            _addTextOverlay(controller.text);
+                          },
+                          child: Text("เพิ่ม"))),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: "กรอกข้อความที่ต้องการแสดง",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ));
+        });
   }
 }
