@@ -17,11 +17,10 @@ class DraggableEditableText extends StatefulWidget {
 class _DraggableEditableTextState extends State<DraggableEditableText> {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 50, bottom: 30),
+    return FittedBox(
       child: Text(
         widget.text,
-        style: const TextStyle(fontSize: 20, color: Colors.white),
+        style: const TextStyle(fontSize: 24, color: Colors.white),
       ),
     );
   }

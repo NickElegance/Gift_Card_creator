@@ -39,6 +39,7 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
   double _scale = 1.0;
   double _rotation = 0.0;
   bool _flipped = false;
+  bool _isExporting = false;
 
   // Variables to store initial gesture parameters.
   Offset _initialFocalPoint = Offset.zero;
@@ -65,11 +66,17 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
   /// Exports the card view as a PNG image and saves it to local storage.
   Future<void> _exportToPNG() async {
     try {
+      setState(() {
+        _isExporting = true;
+      });
+      await Future.delayed(Duration(milliseconds: 100));
       // Retrieve the render object from the global key.
+
       RenderRepaintBoundary boundary = _globalKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
       // Increase pixelRatio for better quality.
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+
       ByteData? byteData =
           await image.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
@@ -82,12 +89,19 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
 
       final params = SaveFileDialogParams(sourceFilePath: file.path);
       final result = await FlutterFileDialog.saveFile(params: params);
+
       if (result == null) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Card saved ")),
       );
+      setState(() {
+        _isExporting = false;
+      });
     } catch (e) {
+      setState(() {
+        _isExporting = false;
+      });
       print("Error exporting PNG: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to export image.")),
@@ -125,6 +139,37 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
           text: text,
         ),
       );
+    });
+  }
+
+  double _width = 200;
+  double _height = 200;
+  double _left = 100; // Initial left position (keeps the top-left corner fixed)
+  double _top = 100; // Initial top position (prevents movement upwards)
+
+  void _resize(DragUpdateDetails details) {
+    setState(() {
+      double newWidth =
+          _width + details.delta.dx; // Increase width to the right
+      double newHeight = _height + details.delta.dy; // Increase height downward
+
+      // Clamp the values to prevent shrinking too much
+      newWidth = newWidth.clamp(10, 400);
+      newHeight = newHeight.clamp(10, 400);
+
+      // Adjust the left position to keep the bottom-left corner fixed
+      _left -= (newWidth - _width);
+
+      _width = newWidth;
+      _height = newHeight;
+    });
+  }
+
+  void _rotate(DragUpdateDetails details) {
+    setState(() {
+      // Update the rotation based on the horizontal drag delta.
+      // You can adjust the divisor to control the rotation sensitivity.
+      _rotationText += details.delta.dx / 100;
     });
   }
 
@@ -221,7 +266,7 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
                               _offset = _initialOffset +
                                   (details.focalPoint - _initialFocalPoint);
                               _scale = _initialScale * details.scale;
-                              _rotation = _initialRotation + details.rotation;
+                              // _rotation = _initialRotation + details.rotation;
                             });
                           },
                           child: Transform(
@@ -270,53 +315,77 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
                                   padding: const EdgeInsets.all(8.0),
                                   decoration: BoxDecoration(
                                     // Frame covering the text:
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
+                                    border: _isExporting
+                                        ? null
+                                        : Border.all(
+                                            color: Colors.white,
+                                            width: 2,
+                                          ),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Container(
-                                      width: 300,
+                                      width: _width,
+                                      height: _height,
                                       decoration: BoxDecoration(
                                         // Frame covering the text:
-                                        border: Border.all(
-                                            color: Colors.white, width: 2),
+
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: e),
                                 ),
-                                Positioned(
-                                  left: 0,
-                                  top: 0,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _textWidgets.remove(e);
-                                      });
-                                    },
-                                    child: CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Colors.white,
-                                      child: Icon(
-                                        Icons.delete,
-                                        size: 15,
+                                _isExporting
+                                    ? SizedBox()
+                                    : Positioned(
+                                        left: 0,
+                                        top: 0,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _textWidgets.remove(e);
+                                            });
+                                          },
+                                          child: CircleAvatar(
+                                            radius: 18,
+                                            backgroundColor: Colors.white,
+                                            child: Icon(
+                                              Icons.delete,
+                                              size: 15,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: GestureDetector(
-                                    child: CircleAvatar(
-                                      radius: 12,
-                                      backgroundColor: Colors.white,
-                                      child: Icon(
-                                        Icons.center_focus_weak,
-                                        size: 15,
-                                      ),
-                                    ),
-                                  ),
-                                )
+                                // Positioned(
+                                //   top: 0,
+                                //   right: 0,
+                                //   child: GestureDetector(
+                                //     onPanUpdate: _rotate,
+                                //     child: CircleAvatar(
+                                //       radius: 18,
+                                //       backgroundColor: Colors.white,
+                                //       child: Icon(
+                                //         Icons.rotate_right,
+                                //         size: 15,
+                                //       ),
+                                //     ),
+                                //   ),
+                                // ),
+                                _isExporting
+                                    ? SizedBox()
+                                    : Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: GestureDetector(
+                                          onPanUpdate: _resize,
+                                          child: CircleAvatar(
+                                            radius: 18,
+                                            backgroundColor: Colors.white,
+                                            child: Icon(
+                                              Icons.center_focus_weak,
+                                              size: 15,
+                                            ),
+                                          ),
+                                        ),
+                                      )
                               ],
                             )),
                           ),
