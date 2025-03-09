@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:gold_card_editer/feature/draggableText.widget.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +13,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
+
+import 'package:saver_gallery/saver_gallery.dart';
 
 /// Gift Card Creator view that accepts a card size.
 class GiftCardCreator extends StatefulWidget {
@@ -79,7 +82,10 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
 
       // Calculate required pixel ratio for 300 DPI at gift card size
       // Assuming your widget is designed at the correct aspect ratio
-      double requiredWidth = 1012; // 3.375 inches × 300 DPI
+
+      double requiredWidth = 3.375 * 450; // Card width in inches × DPI
+
+      // double requiredWidth = 1012; // 3.375 inches × 300 DPI
       double pixelRatio = requiredWidth / currentSize.width;
 
       // Capture the widget as an image with print-quality resolution
@@ -93,16 +99,30 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       // Save with a print-ready filename
-      final downloadPath = await getDownloadPath();
-      final filePath =
-          '$downloadPath/printable_gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
+      // final downloadPath = await getImageSavePath();
+      // final filePath =
+      //     '$downloadPath/printable_gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
 
-      final file = File(filePath);
-      await file.writeAsBytes(pngBytes);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Print-ready gift card saved!")),
+      final result = await SaverGallery.saveImage(
+        pngBytes,
+        quality: 100,
+        androidRelativePath: "Pictures/appName/images",
+        skipIfExists: false,
+        fileName: 'gift_card_${DateTime.now().millisecondsSinceEpoch}',
       );
+
+      if (result.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gift card saved to gallery!")),
+        );
+      }
+
+      // final file = File(filePath);
+      // await file.writeAsBytes(pngBytes);
+      // await _scanFile(filePath);
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text("Print-ready gift card saved!")),
+      // );
     } catch (e) {
       print("Error exporting print-ready PNG: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,65 +135,61 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
     }
   }
 
-  /// Exports the card view as a PNG image and saves it to local storage.
-  Future<void> _exportToFixedSizePNG() async {
-    try {
-      setState(() {
-        _isExporting = true;
-      });
+  // /// Exports the card view as a PNG image and saves it to local storage.
+  // Future<void> _exportToFixedSizePNG() async {
+  //   try {
+  //     setState(() {
+  //       _isExporting = true;
+  //     });
 
-      await Future.delayed(
-          Duration(seconds: 1)); // Capture the widget as an image
-      RenderRepaintBoundary boundary = _globalKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
+  //     await Future.delayed(
+  //         Duration(seconds: 1)); // Capture the widget as an image
+  //     RenderRepaintBoundary boundary = _globalKey.currentContext!
+  //         .findRenderObject() as RenderRepaintBoundary;
 
-      // Use a high pixel ratio to capture details
-      ui.Image rawImage = await boundary.toImage(pixelRatio: 5.0);
+  //     // Use a high pixel ratio to capture details
+  //     ui.Image rawImage = await boundary.toImage(pixelRatio: 5.0);
 
-      // Convert to ByteData with PNG format directly
-      ByteData? byteData =
-          await rawImage.toByteData(format: ui.ImageByteFormat.png);
+  //     // Convert to ByteData with PNG format directly
+  //     ByteData? byteData =
+  //         await rawImage.toByteData(format: ui.ImageByteFormat.png);
 
-      if (byteData == null) {
-        throw Exception('Failed to get image data');
-      }
+  //     if (byteData == null) {
+  //       throw Exception('Failed to get image data');
+  //     }
 
-      Uint8List pngBytes = byteData.buffer.asUint8List();
+  //     Uint8List pngBytes = byteData.buffer.asUint8List();
 
-      // Save file to storage
-      final downloadPath = await getDownloadPath();
-      final filePath =
-          '$downloadPath/gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
+  //     // Save file to storage
+  //     // final result = await ImageGallerySaver.saveImage(pngBytes,
+  //     //     name: 'gift_card_${DateTime.now().millisecondsSinceEpoch}');
 
-      print("Saving to: $filePath");
-      final file = File(filePath);
-      await file.writeAsBytes(pngBytes);
+  //     final result = await SaverGallery.saveImage(
+  //       pngBytes,
+  //       quality: 100,
+  //       androidRelativePath: "Pictures/appName/images",
+  //       skipIfExists: false,
+  //       fileName: 'gift_card_${DateTime.now().millisecondsSinceEpoch}',
+  //     );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gift card saved successfully!")),
-      );
-    } catch (e) {
-      print("Error exporting PNG: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to export image: ${e.toString()}")),
-      );
-    } finally {
-      setState(() {
-        _isExporting = false;
-      });
-    }
-  }
+  //     if (result.isSuccess) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text("Gift card saved to gallery!")),
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print("Error exporting PNG: $e");
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("Failed to export image: ${e.toString()}")),
+  //     );
+  //   } finally {
+  //     setState(() {
+  //       _isExporting = false;
+  //     });
+  //   }
+  // }
 
-  Future<String> getDownloadPath() async {
-    Directory? directory;
-    if (Platform.isAndroid) {
-      directory = Directory(
-          '/storage/emulated/0/Download'); // Default Android Downloads folder
-    } else {
-      directory = await getApplicationDocumentsDirectory(); // iOS alternative
-    }
-    return directory.path;
-  }
+// In your export function
 
   /// Toggles a horizontal flip of the background image.
   void _flipImage() {
@@ -249,12 +265,14 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
         spacing: 5,
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          // FloatingActionButton(
+          //   heroTag: "download1",
+          //   backgroundColor: Colors.green,
+          //   onPressed: _exportToFixedSizePNG,
+          //   child: Icon(Icons.download),
+          // ),
           FloatingActionButton(
-            backgroundColor: Colors.green,
-            onPressed: _exportToFixedSizePNG,
-            child: Icon(Icons.download),
-          ),
-          FloatingActionButton(
+            heroTag: "download2",
             backgroundColor: Colors.yellow,
             onPressed: _exportPrintReadyGiftCard,
             child: Icon(Icons.download),
