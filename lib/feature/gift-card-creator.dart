@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,10 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:gold_card_editer/feature/draggableText.widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:image/image.dart' as img;
 
 /// Gift Card Creator view that accepts a card size.
 class GiftCardCreator extends StatefulWidget {
@@ -63,50 +66,113 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
     }
   }
 
-  /// Exports the card view as a PNG image and saves it to local storage.
-  Future<void> _exportToPNG() async {
+  Future<void> _exportPrintReadyGiftCard() async {
     try {
       setState(() {
         _isExporting = true;
       });
-      await Future.delayed(Duration(milliseconds: 100));
-      // Retrieve the render object from the global key.
+      await Future.delayed(Duration(seconds: 1));
+      // Get the current size of your widget
+      RenderBox renderBox =
+          _globalKey.currentContext!.findRenderObject() as RenderBox;
+      Size currentSize = renderBox.size;
 
+      // Calculate required pixel ratio for 300 DPI at gift card size
+      // Assuming your widget is designed at the correct aspect ratio
+      double requiredWidth = 1012; // 3.375 inches × 300 DPI
+      double pixelRatio = requiredWidth / currentSize.width;
+
+      // Capture the widget as an image with print-quality resolution
       RenderRepaintBoundary boundary = _globalKey.currentContext!
           .findRenderObject() as RenderRepaintBoundary;
-      // Increase pixelRatio for better quality.
-      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ui.Image rawImage = await boundary.toImage(pixelRatio: pixelRatio);
 
+      // Get PNG data directly
       ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+          await rawImage.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
-      final directory = await getTemporaryDirectory();
-      final fileName =
-          '${directory.path}/gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
-      final file = File(fileName);
+      // Save with a print-ready filename
+      final downloadPath = await getDownloadPath();
+      final filePath =
+          '$downloadPath/printable_gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
+
+      final file = File(filePath);
       await file.writeAsBytes(pngBytes);
 
-      final params = SaveFileDialogParams(sourceFilePath: file.path);
-      final result = await FlutterFileDialog.saveFile(params: params);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Print-ready gift card saved!")),
+      );
+    } catch (e) {
+      print("Error exporting print-ready PNG: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to export print-ready image.")),
+      );
+    } finally {
+      setState(() {
+        _isExporting = false;
+      });
+    }
+  }
 
-      if (result == null) return;
+  /// Exports the card view as a PNG image and saves it to local storage.
+  Future<void> _exportToFixedSizePNG() async {
+    try {
+      setState(() {
+        _isExporting = true;
+      });
+
+      await Future.delayed(
+          Duration(seconds: 1)); // Capture the widget as an image
+      RenderRepaintBoundary boundary = _globalKey.currentContext!
+          .findRenderObject() as RenderRepaintBoundary;
+
+      // Use a high pixel ratio to capture details
+      ui.Image rawImage = await boundary.toImage(pixelRatio: 5.0);
+
+      // Convert to ByteData with PNG format directly
+      ByteData? byteData =
+          await rawImage.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) {
+        throw Exception('Failed to get image data');
+      }
+
+      Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      // Save file to storage
+      final downloadPath = await getDownloadPath();
+      final filePath =
+          '$downloadPath/gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
+
+      print("Saving to: $filePath");
+      final file = File(filePath);
+      await file.writeAsBytes(pngBytes);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Card saved ")),
+        SnackBar(content: Text("Gift card saved successfully!")),
       );
-      setState(() {
-        _isExporting = false;
-      });
     } catch (e) {
-      setState(() {
-        _isExporting = false;
-      });
       print("Error exporting PNG: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to export image.")),
+        SnackBar(content: Text("Failed to export image: ${e.toString()}")),
       );
+    } finally {
+      setState(() {
+        _isExporting = false;
+      });
     }
+  }
+
+  Future<String> getDownloadPath() async {
+    Directory? directory;
+    if (Platform.isAndroid) {
+      directory = Directory(
+          '/storage/emulated/0/Download'); // Default Android Downloads folder
+    } else {
+      directory = await getApplicationDocumentsDirectory(); // iOS alternative
+    }
+    return directory.path;
   }
 
   /// Toggles a horizontal flip of the background image.
@@ -179,53 +245,74 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
       appBar: AppBar(
         title: Text("Gift Card Creator (${widget.cardLabel})"),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _exportToPNG,
-        child: Icon(Icons.download),
+      floatingActionButton: Column(
+        spacing: 5,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            backgroundColor: Colors.green,
+            onPressed: _exportToFixedSizePNG,
+            child: Icon(Icons.download),
+          ),
+          FloatingActionButton(
+            backgroundColor: Colors.yellow,
+            onPressed: _exportPrintReadyGiftCard,
+            child: Icon(Icons.download),
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          spacing: 5,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: _buildCard(),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              spacing: 5,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: _buildCard(),
+                ),
+                SingleChildScrollView(
+                  child: Row(
+                    spacing: 5,
+                    children: [
+                      ChoiceChip(
+                          onSelected: (value) {
+                            _pickImage();
+                          },
+                          showCheckmark: false,
+                          label: const Icon(Icons.image),
+                          selected: false),
+                      ChoiceChip(
+                          showCheckmark: false,
+                          onSelected: (value) {
+                            _flipImage();
+                          },
+                          label: const Icon(Icons.flip),
+                          selected: false),
+                      ChoiceChip(
+                          onSelected: (value) {
+                            _openButtomSheet();
+                          },
+                          showCheckmark: false,
+                          label: const Icon(Icons.text_fields),
+                          selected: false),
+                    ],
+                  ),
+                )
+              ],
             ),
-            SingleChildScrollView(
-              child: Row(
-                spacing: 5,
-                children: [
-                  ChoiceChip(
-                      onSelected: (value) {
-                        _pickImage();
-                      },
-                      showCheckmark: false,
-                      label: const Icon(Icons.image),
-                      selected: false),
-                  ChoiceChip(
-                      showCheckmark: false,
-                      onSelected: (value) {
-                        _flipImage();
-                      },
-                      label: const Icon(Icons.flip),
-                      selected: false),
-                  ChoiceChip(
-                      onSelected: (value) {
-                        _openButtomSheet();
-                      },
-                      showCheckmark: false,
-                      label: const Icon(Icons.text_fields),
-                      selected: false),
-                ],
-              ),
-            )
-          ],
-        ),
+          ),
+          if (_isExporting) _buildLoading()
+        ],
       ),
     );
   }
+
+  Widget _buildLoading() => Container(
+      color: Colors.black.withValues(alpha: .4),
+      child: const Center(child: CircularProgressIndicator()));
 
   Align _buildCard() {
     return Align(
