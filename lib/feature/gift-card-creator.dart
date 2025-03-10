@@ -74,7 +74,7 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
       setState(() {
         _isExporting = true;
       });
-      await Future.delayed(Duration(seconds: 1));
+      await Future.delayed(Duration(milliseconds: 500));
       // Get the current size of your widget
       RenderBox renderBox =
           _globalKey.currentContext!.findRenderObject() as RenderBox;
@@ -83,7 +83,7 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
       // Calculate required pixel ratio for 300 DPI at gift card size
       // Assuming your widget is designed at the correct aspect ratio
 
-      double requiredWidth = 3.375 * 450; // Card width in inches × DPI
+      double requiredWidth = 3.375 * 600; // Card width in inches × DPI
 
       // double requiredWidth = 1012; // 3.375 inches × 300 DPI
       double pixelRatio = requiredWidth / currentSize.width;
