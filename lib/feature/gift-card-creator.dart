@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:saver_gallery/saver_gallery.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 /// Gift Card Creator view that accepts a card size.
 class GiftCardCreator extends StatefulWidget {
@@ -79,14 +80,14 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
       RenderBox renderBox =
           _globalKey.currentContext!.findRenderObject() as RenderBox;
       Size currentSize = renderBox.size;
-
+// double longestSize = currentSize.longestSide;
       // Calculate required pixel ratio for 300 DPI at gift card size
       // Assuming your widget is designed at the correct aspect ratio
 
-      double requiredWidth = 3.375 * 600; // Card width in inches × DPI
+      double requiredWidth = 3.375 * 450; // Card width in inches × DPI
 
       // double requiredWidth = 1012; // 3.375 inches × 300 DPI
-      double pixelRatio = requiredWidth / currentSize.width;
+      double pixelRatio = requiredWidth / currentSize.longestSide;
 
       // Capture the widget as an image with print-quality resolution
       RenderRepaintBoundary boundary = _globalKey.currentContext!
@@ -98,13 +99,21 @@ class _GiftCardCreatorState extends State<GiftCardCreator> {
           await rawImage.toByteData(format: ui.ImageByteFormat.png);
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
+      Uint8List compressedBytes = await FlutterImageCompress.compressWithList(
+        pngBytes,
+        minHeight: rawImage.height,
+        minWidth: rawImage.width,
+        quality: 85,
+        format: CompressFormat.png,
+      ); // 85% quality is usually good
+
       // Save with a print-ready filename
       // final downloadPath = await getImageSavePath();
       // final filePath =
       //     '$downloadPath/printable_gift_card_${DateTime.now().millisecondsSinceEpoch}.png';
 
       final result = await SaverGallery.saveImage(
-        pngBytes,
+        compressedBytes,
         quality: 100,
         androidRelativePath: "Pictures/appName/images",
         skipIfExists: false,
